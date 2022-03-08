@@ -23,3 +23,5 @@ echo 'src-git Openclash https://github.com/vernesong/OpenClash' >>feeds.conf.def
 #其他软件包源
 echo 'src-git freifunk https://github.com/freifunk/openwrt-packages.git' >>feeds.conf.default
 echo 'src-git kenzo https://github.com/kenzok8/openwrt-packages' >>feeds.conf.default
+#passwall依赖
+echo 'src-git small https://github.com/kenzok8/small' >>feeds.conf.default
