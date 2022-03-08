@@ -116,12 +116,13 @@ jobs:
       if: (!cancelled())
       run: df -hT
 
-    - name: Zip packages directory
-      id: zip_packages
+    - name: Zip packages and firmware directory
+      id: zip
       if: steps.compile.outputs.status == 'success' && !cancelled()
       run: |
         cd openwrt/bin
         zip -r packages.zip packages
+        zip -r firmware.zip targets
         echo "::set-output name=status::success"
 
     - name: Upload packages directory
@@ -131,39 +132,30 @@ jobs:
         name: OpenWrt_packages${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: openwrt/bin/packages
 
-    - name: Organize files
-      id: organize
-      if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
-      run: |
-        cd openwrt/bin/targets/*/*
-        rm -rf packages
-        echo "FIRMWARE=$PWD" >> $GITHUB_ENV
-        echo "::set-output name=status::success"
-
     - name: Upload firmware directory
       uses: actions/upload-artifact@main
-      if: steps.organize.outputs.status == 'success' && !cancelled()
+      if: steps.compile.outputs.status == 'success' && !cancelled()
       with:
         name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
-        path: ${{ env.FIRMWARE }}
+        path: openwrt/bin/targets
 
     - name: Upload firmware to cowtransfer
-      id: cowtransfer
-      if: steps.organize.outputs.status == 'success' && env.UPLOAD_FIRMWARE_TO_COWTRANSFER == 'true' && !cancelled()
+      id: cowtransfer_firmware
+      if: steps.compile.outputs.status == 'success' && env.UPLOAD_FIRMWARE_TO_COWTRANSFER == 'true' && !cancelled()
       run: |
         curl -fsSL git.io/file-transfer | sh
-        ./transfer cow --block 2621440 -s -p 64 --no-progress ${FIRMWARE} 2>&1 | tee cowtransfer.log
-        echo "::warning file=cowtransfer.com::$(cat cowtransfer.log | grep https)"
-        echo "::set-output name=url::$(cat cowtransfer.log | grep https | cut -f3 -d" ")"
+        ./transfer cow --block 2621440 -s -p 64 --no-progress openwrt/bin/targets 2>&1 | tee cowtransfer_firmware.log
+        echo "::warning file=cowtransfer.com::$(cat cowtransfer_firmware.log | grep https)"
+        echo "::set-output name=url::$(cat cowtransfer_firmware.log | grep https | cut -f3 -d" ")"
 
     - name: Upload firmware to WeTransfer
-      id: wetransfer
-      if: steps.organize.outputs.status == 'success' && env.UPLOAD_FIRMWARE_TO_WETRANSFER == 'true' && !cancelled()
+      id: wetransfer_firmware
+      if: steps.compile.outputs.status == 'success' && env.UPLOAD_FIRMWARE_TO_WETRANSFER == 'true' && !cancelled()
       run: |
         curl -fsSL git.io/file-transfer | sh
-        ./transfer wet -s -p 16 --no-progress ${FIRMWARE} 2>&1 | tee wetransfer.log
-        echo "::warning file=wetransfer.com::$(cat wetransfer.log | grep https)"
-        echo "::set-output name=url::$(cat wetransfer.log | grep https | cut -f3 -d" ")"
+        ./transfer wet -s -p 16 --no-progress openwrt/bin/targets 2>&1 | tee wetransfer_firmware.log
+        echo "::warning file=wetransfer.com::$(cat wetransfer_firmware.log | grep https)"
+        echo "::set-output name=url::$(cat wetransfer_firmware.log | grep https | cut -f3 -d" ")"
 
     - name: Upload packages to cowtransfer
       id: cowtransfer_packages
@@ -185,14 +177,14 @@ jobs:
 
     - name: Generate release tag
       id: tag
-      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+      if: steps.zip.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
       run: |
         echo "::set-output name=release_tag::$(date +"%Y.%m.%d-%H%M")"
         touch release.txt
-        [ $UPLOAD_FIRMWARE_TO_COWTRANSFER = true ] && echo "🔗 [Cowtransfer_firmware](${{ steps.cowtransfer.outputs.url }})" >> release.txt
-        [ $UPLOAD_FIRMWARE_TO_WETRANSFER = true ] && echo "🔗 [WeTransfer_firmware](${{ steps.wetransfer.outputs.url }})" >> release.txt
-        [ $UPLOAD_PACKAGES_TO_COWTRANSFER = true ] && echo "🔗 [Cowtransfer_packages](${{ steps.cowtransfer.outputs.url }})" >> release.txt
-        [ $UPLOAD_PACKAGES_TO_WETRANSFER = true ] && echo "🔗 [WeTransfer_packages](${{ steps.wetransfer.outputs.url }})" >> release.txt
+        [ $UPLOAD_FIRMWARE_TO_COWTRANSFER = true ] && echo "🔗 [Cowtransfer_firmware](${{ steps.cowtransfer_firmware.outputs.url }})" >> release.txt
+        [ $UPLOAD_FIRMWARE_TO_WETRANSFER = true ] && echo "🔗 [WeTransfer_firmware](${{ steps.wetransfer_firmware.outputs.url }})" >> release.txt
+        [ $UPLOAD_PACKAGES_TO_COWTRANSFER = true ] && echo "🔗 [Cowtransfer_packages](${{ steps.cowtransfer_packages.outputs.url }})" >> release.txt
+        [ $UPLOAD_PACKAGES_TO_WETRANSFER = true ] && echo "🔗 [WeTransfer_packages](${{ steps.wetransfer_packages.outputs.url }})" >> release.txt
         echo "::set-output name=status::success"
 
     - name: Upload firmware to release
@@ -201,10 +193,10 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ steps.tag.outputs.release_tag }}
+        tag_name: ${{env.DEVICE_NAME}}-${{ steps.tag.outputs.release_tag }}
         body_path: release.txt
         files: |
-          ${{ env.FIRMWARE }}/*
+          openwrt/bin/firmware.zip
           openwrt/bin/packages.zip
 
     # - name: Delete workflow runs
