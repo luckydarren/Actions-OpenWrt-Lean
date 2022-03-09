@@ -124,16 +124,16 @@ jobs:
         zip -r firmware.zip targets
         echo "::set-output name=status::success"
 
-    - name: Upload packages directory
+    - name: Upload packages to artifact
       uses: actions/upload-artifact@main
-      if: steps.compile.outputs.status == 'success' && env.UPLOAD_PACKAGES == 'true'
+      if: steps.compile.outputs.status == 'success' && env.UPLOAD_PACKAGES == 'true' && !cancelled()
       with:
         name: OpenWrt_packages${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: openwrt/bin/packages
 
-    - name: Upload firmware directory
+    - name: Upload firmware to artifact
       uses: actions/upload-artifact@main
-      if: steps.compile.outputs.status == 'success' && !cancelled()
+      if: steps.compile.outputs.status == 'success' && env.UPLOAD_FIRMWARE == 'true' && !cancelled()
       with:
         name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: openwrt/bin/targets
@@ -192,7 +192,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{env.DEVICE_NAME}}-${{ steps.tag.outputs.release_tag }}
+        tag_name: ${{ steps.tag.outputs.release_tag }}${{env.DEVICE_NAME}}
         body_path: release.txt
         files: |
           openwrt/bin/firmware.zip
