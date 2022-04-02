@@ -165,22 +165,22 @@ jobs:
         echo "::warning file=wetransfer.com::$(cat wetransfer_packages.log | grep https)"
         echo "::set-output name=url::$(cat wetransfer_packages.log | grep https | cut -f3 -d" ")"
   
- ​    - ​name​: ​Organize files 
- ​      ​id​: ​organize 
- ​      ​if​: ​steps.compile.outputs.status == 'success' && !cancelled() 
- ​      ​run​: ​| 
- ​        cd openwrt/bin/targets/*/* 
- ​        zip -r firmware_packages.zip packages 
- ​        rm -rf packages 
- ​        echo "FIRMWARE=$PWD" >> $GITHUB_ENV 
- ​        echo "::set-output name=status::success"
+ ​   - ​name​: ​Organize files 
+ ​     ​id​: ​organize 
+ ​     ​if​: ​steps.compile.outputs.status == 'success' && !cancelled() 
+ ​     ​run​: ​| 
+ ​       cd openwrt/bin/targets/*/* 
+ ​       zip -r firmware_packages.zip packages 
+ ​       rm -rf packages 
+ ​       echo "FIRMWARE=$PWD" >> $GITHUB_ENV 
+ ​       echo "::set-output name=status::success"
 
- ​    - ​name​: ​Zip files 
- ​      ​id​: ​zip 
- ​      ​if​: ​steps.organize.outputs.status == 'success' && !cancelled() 
- ​      ​run​: ​| 
- ​        zip -r ${FIRMWARE}/packages.zip openwrt/bin/packages 
- ​        echo "::set-output name=status::success"
+ ​   - ​name​: ​Zip files 
+ ​     ​id​: ​zip 
+ ​     ​if​: ​steps.organize.outputs.status == 'success' && !cancelled() 
+ ​     ​run​: ​| 
+ ​       zip -r ${FIRMWARE}/packages.zip openwrt/bin/packages 
+ ​       echo "::set-output name=status::success"
 
     - name: Generate release tag
       id: tag
